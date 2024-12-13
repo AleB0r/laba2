@@ -1,58 +1,32 @@
 <?php
 session_start();
 include 'db.php';
-echo "<link rel='stylesheet' href='css/add_style.css'>";
 include 'header.php';
+include 'task_manager.php'; // Подключаем файл с функцией
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit();
 }
 
-date_default_timezone_set('Europe/Moscow');
-
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Получаем данные из формы
     $title = $_POST['title'];
     $description = $_POST['description'];
     $due_date = $_POST['due_date'];
     $reminder_time = $_POST['reminder_time'];
     $user_id = $_SESSION['user_id'];
-    
-    $current_datetime = new DateTime();
-    $due_datetime = new DateTime($due_date . ' ' . $reminder_time);
 
-    if ($due_datetime < $current_datetime) {
-        echo "<script>alert('Error: The due date and reminder time must be in the future.')</script>";
-    } else {
-        try {
-            $status = 'pending';
+    // Вызываем функцию для добавления задачи
+    $result = addTask($conn, $title, $description, $due_date, $reminder_time, $user_id);
 
-            $checkSql = "SELECT COUNT(*) FROM tasks WHERE title = ? AND user_id = ?";
-            $stmt = $conn->prepare($checkSql);
-            $stmt->bind_param('si', $title, $user_id);
-            $stmt->execute();
-            $stmt->bind_result($count);
-            $stmt->fetch();
-            $stmt->close();
+    // Если задача добавлена успешно или произошла ошибка, выводим сообщение
+    echo "<script>alert('$result');</script>";
 
-            if ($count > 0) {
-                echo "<script>alert('Error: The title must be unique.')</script>";
-            } else {
-                $sql = "INSERT INTO tasks (title, description, due_date, reminder_time, status, user_id) 
-                        VALUES (?, ?, ?, ?, ?, ?)";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param('sssssi', $title, $description, $due_date, $reminder_time, $status, $user_id);
-                
-                if ($stmt->execute()) {
-                    header("Location: index.php");
-                    exit();
-                } else {
-                    throw new Exception($stmt->error);
-                }
-            }
-        } catch (Exception $e) {
-            echo "<script>alert('Error adding task: " . addslashes($e->getMessage()) . "');</script>";
-        }
+    // Если задача была добавлена успешно, перенаправляем на главную страницу
+    if ($result == "Task created successfully.") {
+        echo "<script>window.location.href = 'index.php';</script>";
+        exit();
     }
 }
 ?>

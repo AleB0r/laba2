@@ -1,5 +1,6 @@
 <?php
 include 'db.php';
+include 'RegisterController.php'; // Подключаем функцию регистрации
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username']);
@@ -7,50 +8,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $confirm_password = trim($_POST['confirm_password']);
     $skills = $_POST['skills']; // Массив выбранных умений
 
-    $user_type = 'user';
+    // Вызываем функцию регистрации
+    $result = registerUser($conn, $username, $password, $confirm_password, $skills);
 
-    if (strpos($username, ' ') !== false) {
-        echo "<script>alert('Username cannot contain spaces!');</script>";
-    } elseif ($password !== $confirm_password) {
-        echo "<script>alert('Passwords do not match!');</script>";
-    } elseif (empty($skills)) {
-        echo "<script>alert('Please select at least one skill!');</script>";
+    if ($result === 'Registration successful!') {
+        header('Location: login.php');
+        exit();
     } else {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-        try {
-            // Начало транзакции
-            $conn->begin_transaction();
-
-            // Добавление пользователя
-            $stmt = $conn->prepare("INSERT INTO users (username, password, user_type) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $username, $hashed_password, $user_type);
-
-            if ($stmt->execute() === TRUE) {
-                $user_id = $conn->insert_id; // Получаем ID нового пользователя
-
-                // Добавление навыков пользователя
-                $skill_stmt = $conn->prepare("INSERT INTO user_skills (user_id, language_id) VALUES (?, ?)");
-                foreach ($skills as $skill_id) {
-                    $skill_stmt->bind_param("ii", $user_id, $skill_id);
-                    $skill_stmt->execute();
-                }
-
-                // Подтверждение транзакции
-                $conn->commit();
-                
-                header('Location: login.php');
-                exit();
-            } else {
-                throw new Exception($stmt->error);
-            }
-
-            $stmt->close();
-        } catch (Exception $e) {
-            // Откат транзакции в случае ошибки
-            $conn->rollback();
-            echo "<script>alert('Error registering user: " . addslashes($e->getMessage()) . "');</script>";
-        }
+        echo "<script>alert('$result');</script>";
     }
 }
 ?>
@@ -110,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ?>
             </select><br><br>
 
-            <input type="submit" value="Register" class="btn-login">
+            <input type="submit" value="RegisterСontroller" class="btn-login">
         </form>
         <p>Already have an account? <a href="login.php" class="btn">Login here</a></p>
     </div>

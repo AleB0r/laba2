@@ -11,17 +11,19 @@ h2 {
     margin-bottom: 20px;
 }
 
-
 form {
-    background-color: #fff;
-    padding: 0px;
+    background-color: white; /* Темный цвет фона для формы */
+    color: #fff; /* Белый текст */
+    padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     max-width: 500px;
+    margin: 0 auto; /* Центрируем форму */
 }
 
 label {
     font-weight: bold;
+    color: #fff; /* Белый цвет текста для меток */
 }
 
 input[type="text"],
@@ -34,6 +36,8 @@ textarea {
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
+    background-color: #444; /* Темный фон для полей ввода */
+    color: #fff; /* Белый цвет текста для полей */
 }
 
 input[type="submit"] {
@@ -49,8 +53,15 @@ input[type="submit"] {
 }
 
 input[type="submit"]:hover {
-    background-color: #007bff;
+    background-color: #0056b3; /* Более темный синий при наведении */
 }
 
-
-
+/* Дополнительные стили для фокуса на полях ввода */
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+textarea:focus {
+    background-color: #555;
+    border-color: #007bff;
+    outline: none;
+}

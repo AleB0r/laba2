@@ -14,9 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $weight_accepted = floatval($_POST['weight_accepted']);
     $weight_rejected = floatval($_POST['weight_rejected']);
     $weight_skills = floatval($_POST['weight_skills']);
+    $weight_pop = floatval($_POST['weight_pop']);
 
-    $stmt = $conn->prepare("UPDATE rating_weights SET weight_accepted = ?, weight_rejected = ?, weight_skills = ? WHERE id = ?");
-    $stmt->bind_param("dddi", $weight_accepted, $weight_rejected, $weight_skills, $weights['id']);
+    $stmt = $conn->prepare("UPDATE rating_weights SET weight_accepted = ?, weight_rejected = ?, weight_skills = ?, weight_popular_language = ? WHERE id = ?");
+    $stmt->bind_param("ddddi", $weight_accepted, $weight_rejected, $weight_skills, $weight_pop, $weights['id']);
     if ($stmt->execute()) {
         echo "<script>alert('Weights updated successfully.');</script>";
         header("Refresh:0"); 
@@ -44,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <label for="weight_skills">Weight for Skill Matches:</label>
         <input type="number" step="0.1" name="weight_skills" value="<?= htmlspecialchars($weights['weight_skills']) ?>" required>
+
+        <label for="weight_skills">Weight for Popular language:</label>
+        <input type="number" step="0.1" name="weight_pop" value="<?= htmlspecialchars($weights['weight_popular_language']) ?>" required>
 
         <button type="submit">Update Weights</button>
     </form>

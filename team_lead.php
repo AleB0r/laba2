@@ -25,15 +25,13 @@ if (isset($_POST['delete_project'])) {
     exit();
 }
 
-// Получение проектов с языками программирования
-$projects = $conn->query("
-    SELECT p.id, p.title, p.description, GROUP_CONCAT(pl.name SEPARATOR ', ') AS languages
-    FROM projects p
-    LEFT JOIN project_languages pl_assoc ON p.id = pl_assoc.project_id
-    LEFT JOIN programming_languages pl ON pl_assoc.language_id = pl.id
-    WHERE p.team_lead_id = $team_lead_id
-    GROUP BY p.id
-");
+// Получение проектов с языками программирования, страной и логотипом
+$projects = $conn->query("SELECT p.id, p.title, p.description, p.place, p.logo, GROUP_CONCAT(pl.name SEPARATOR ', ') AS languages
+                          FROM projects p
+                          LEFT JOIN project_languages pl_assoc ON p.id = pl_assoc.project_id
+                          LEFT JOIN programming_languages pl ON pl_assoc.language_id = pl.id
+                          WHERE p.team_lead_id = $team_lead_id
+                          GROUP BY p.id");
 ?>
 
 <!DOCTYPE html>
@@ -54,6 +52,8 @@ $projects = $conn->query("
             <th>Project Title</th>
             <th>Description</th>
             <th>Programming Languages</th>
+            <th>Place</th> <!-- Новый столбец для страны -->
+            <th>Logo</th> <!-- Новый столбец для логотипа -->
             <th>Actions</th>
         </tr>
         <?php while ($project = $projects->fetch_assoc()): ?>
@@ -61,6 +61,40 @@ $projects = $conn->query("
             <td><?= htmlspecialchars($project['title']) ?></td>
             <td><?= htmlspecialchars($project['description']) ?></td>
             <td><?= htmlspecialchars($project['languages']) ?></td>
+            <td><?= htmlspecialchars($project['place']) ?></td> <!-- Вывод страны -->
+            
+            <!-- Проверка наличия логотипа -->
+            <td>
+    <?php 
+    if ($project['logo']) {
+        // Проверяем, существует ли файл
+        if (file_exists($project['logo'])) {
+            // Проверяем доступность файла (можно расширить, если нужно)
+            if (is_readable($project['logo'])) {
+                // Проверяем, является ли файл изображением и не поврежден ли он
+                $image_info = getimagesize($project['logo']);
+                if ($image_info === false) {
+                    // Если getimagesize не может извлечь информацию о файле, значит он поврежден
+                    echo '<span>The logo image is corrupted.</span>';
+                } else {
+                    // Если файл является допустимым изображением, выводим его
+                    echo '<img src="' . htmlspecialchars($project['logo']) . '" alt="Logo" width="100" height="100">';
+                }
+            } else {
+                // Если файл существует, но недоступен для чтения
+                echo '<span>Logo is not accessible.</span>';
+            }
+        } else {
+            // Если файл не существует
+            echo '<span>Logo file not found.</span>';
+        }
+    } else {
+        // Если логотип не задан
+        echo '<span>No logo uploaded.</span>';
+    }
+    ?>
+</td>
+
             <td>
                 <a class="view-applications" href="view_project.php?project_id=<?= htmlspecialchars($project['id']) ?>">View Applications</a>
                 

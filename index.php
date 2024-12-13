@@ -1,23 +1,67 @@
 <?php
-echo "<link rel='stylesheet' href='css/style.css'>";
 session_start();
 include 'db.php';
 include 'header.php';
 
-if (!isset($_SESSION['user_id'])) {
+// Заголовок для стилей должен быть выведен до любых echo
+echo "<link rel='stylesheet' href='css/style.css'>";
+
+// Проверка авторизации пользователя
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] != 'user') {
     header('Location: login.php');
-    exit();
+    exit();  // Завершаем выполнение после редиректа
 }
 
+// Обработка сообщений сессии
 if (isset($_SESSION['message'])) {
     echo "<script>alert('" . addslashes($_SESSION['message']) . "');</script>";
     unset($_SESSION['message']);
 }
 
-
 $user_id = $_SESSION['user_id'];
+$username = $_SESSION['username']; 
+
+$secret_key = hash('sha256', $username . $user_id);
+
+
+// Функция для шифрования данных
+function encrypt($data, $secret_key) {
+    $iv = random_bytes(16); 
+    $encrypted_data = openssl_encrypt($data, 'aes-256-cbc', $secret_key, 0, $iv);
+    return base64_encode($iv . $encrypted_data);
+}
+
+// Функция для дешифрования данных
+function decrypt($data, $secret_key) {
+    $data = base64_decode($data);
+    $iv = substr($data, 0, 16); 
+    $encrypted_data = substr($data, 16); 
+    return openssl_decrypt($encrypted_data, 'aes-256-cbc', $secret_key, 0, $iv);
+}
 
 try {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search_type'], $_POST['search_query'])) {
+        $new_search_type = $_POST['search_type'];
+        $new_search_query = $_POST['search_query'];
+
+        // Уникальные имена куки с учетом user_id
+        $cookie_search_type_name = 'search_type_' . $user_id;
+        $cookie_search_query_name = 'search_query_' . $user_id;
+
+        // Шифрование данных
+        $encrypted_search_type = encrypt($new_search_type, $secret_key);
+        $encrypted_search_query = encrypt($new_search_query, $secret_key);
+
+        // Установка куки с уникальными именами
+        echo "<script>
+                document.cookie = '{$cookie_search_type_name}={$encrypted_search_type}'; 
+                document.cookie = '{$cookie_search_query_name}={$encrypted_search_query}';
+                window.location.href = 'search_task.php?search_type=' + encodeURIComponent('{$new_search_type}') + '&search_query=' + encodeURIComponent('{$new_search_query}');
+              </script>";
+        exit();  
+    }
+
+    // Запрос для получения задач пользователя
     $sql = "SELECT * FROM tasks WHERE user_id = '$user_id'";
     $result = $conn->query($sql);
 
@@ -28,7 +72,6 @@ try {
     echo "<div class='task-manager-container'>";
     echo "<h1>Task Manager</h1>";
     echo "<a href='add_task.php' class='add-task-link'>Add New Task</a><br><br>";
-    
 
     if ($result->num_rows > 0) {
         echo "<table class='task-table'>
@@ -71,15 +114,53 @@ try {
     } else {
         echo "<p class='no-tasks'>No tasks found.</p>";
     }
-    echo "<form method='POST' action='search_task.php' class='form1'>
+
+    // Извлечение данных из куки с учетом уникальности имени
+    $cookie_search_type_name = 'search_type_' . $user_id;
+    $cookie_search_query_name = 'search_query_' . $user_id;
+
+    $search_type = isset($_COOKIE[$cookie_search_type_name]) ? decrypt($_COOKIE[$cookie_search_type_name], $secret_key) : 'title';
+    $search_query = isset($_COOKIE[$cookie_search_query_name]) ? decrypt($_COOKIE[$cookie_search_query_name], $secret_key) : '';
+
+    echo "<form method='POST' action='" . $_SERVER['PHP_SELF'] . "' class='form1'>
             <select name='search_type'>
-                <option value='title'>Title</option>
-                <option value='due_date'>Due Date</option>
+                <option value='title' " . ($search_type === 'title' ? 'selected' : '') . ">Title</option>
+                <option value='due_date' " . ($search_type === 'due_date' ? 'selected' : '') . ">Due Date</option>
             </select>
-            <input type='text' name='search_query' placeholder='Search' required>
+            <input type='text' name='search_query' placeholder='Search' value='" . htmlspecialchars($search_query) . "' required>
             <input type='submit' value='Search'>
           </form>";
+
 } catch (Exception $e) {
     echo "<script>alert('Error: " . addslashes($e->getMessage()) . "');</script>";
 }
 ?>
+
+<script>
+// Функция для дешифрования куки в JavaScript
+function decryptCookie(cookieValue, secretKey) {
+    const ivLength = 16; 
+    const data = atob(cookieValue); 
+    const iv = data.slice(0, ivLength); 
+    const encryptedData = data.slice(ivLength); 
+
+    const ivBuffer = CryptoJS.enc.Hex.parse(iv);
+    const encryptedDataBuffer = CryptoJS.enc.Base64.parse(encryptedData);
+
+    const decrypted = CryptoJS.AES.decrypt(
+        { ciphertext: encryptedDataBuffer },
+        secretKey,
+        { iv: ivBuffer }
+    );
+
+    return decrypted.toString(CryptoJS.enc.Utf8); 
+}
+
+const secretKey = '<?= $secret_key ?>';
+
+const searchTypeCookieName = 'search_type_' + '<?= $user_id ?>';
+const searchQueryCookieName = 'search_query_' + '<?= $user_id ?>';
+
+const searchType = decryptCookie(document.cookie.split('; ').find(row => row.startsWith(searchTypeCookieName)).split('=')[1], secretKey);
+const searchQuery = decryptCookie(document.cookie.split('; ').find(row => row.startsWith(searchQueryCookieName)).split('=')[1], secretKey);
+</script>

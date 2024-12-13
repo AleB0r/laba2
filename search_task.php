@@ -1,16 +1,19 @@
 <?php
 session_start();
-echo "<link rel='stylesheet' href='css/style.css'>";
 include 'db.php';
 include 'header.php';
 
+// Заголовок для стилей
+echo "<link rel='stylesheet' href='css/style.css'>";
+
+// Проверка, что пользователь авторизован
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit();
 }
 
-$search_type = $_POST['search_type'] ?? null;
-$search_query = $_POST['search_query'] ?? null;
+$search_type = $_GET['search_type'] ?? null;
+$search_query = $_GET['search_query'] ?? null;
 
 try {
     if ($search_type && $search_query) {
@@ -31,7 +34,9 @@ try {
 
         $stmt->execute();
         $result = $stmt->get_result();
-
+        echo "<div>i</div>";
+        echo "<div>i</div>";
+        echo "<div>i</div>";
         echo "<h1>Search Results</h1>";
         echo "<a href='index.php' class='back-link'>Back to Task List</a><br><br>";
 
@@ -66,5 +71,4 @@ try {
     echo "<script>alert('Error searching task: " . addslashes($e->getMessage()) . "');</script>";
     exit;
 }
-
 ?>
