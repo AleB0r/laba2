@@ -2,13 +2,12 @@
 session_start();
 include 'db.php';
 
-date_default_timezone_set('Europe/Moscow'); // Установите ваш часовой пояс
+date_default_timezone_set('Europe/Moscow'); 
 
-// Максимальное количество попыток
+
 $max_attempts = 3;
-$lockout_time = 1; // Время блокировки в минутах
+$lockout_time = 5; 
 
-// Генерация CSRF-токена при загрузке страницы
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -24,10 +23,9 @@ function isLockedOut($conn, $username, $max_attempts, $lockout_time) {
         $attempt_count = $row['attempt_count'];
 
         if ($locked_until && $locked_until > time()) {
-            return $locked_until; // Вернем время окончания блокировки
+            return $locked_until; 
         }
 
-        // Если блокировка закончилась, сбрасываем счетчик попыток
         if ($attempt_count >= $max_attempts) {
             $locked_until_time = date("Y-m-d H:i:s", strtotime("+$lockout_time minutes"));
             $stmt = $conn->prepare("UPDATE login_attempts SET locked_until = ?, attempt_count = 0 WHERE username = ?");
@@ -37,7 +35,7 @@ function isLockedOut($conn, $username, $max_attempts, $lockout_time) {
         }
     }
 
-    return false; // Блокировки нет
+    return false;
 }
 
 function recordLoginAttempt($conn, $username) {
@@ -63,7 +61,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // Проверка блокировки
     $locked_until = isLockedOut($conn, $username, $max_attempts, $lockout_time);
     if ($locked_until) {
         $lockout_message = "Too many attempts. Try again after " . date("H:i:s", $locked_until) . ".";
@@ -77,18 +74,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($result->num_rows > 0) {
                 $user = $result->fetch_assoc();
                 if (password_verify($password, $user['password'])) {
-                    // Успешный вход
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['user_type'] = $user['user_type'];
                     $_SESSION['login_time'] = time();
 
-                    // Сбросить попытки и блокировку при успешном входе
                     $stmt = $conn->prepare("UPDATE login_attempts SET attempt_count = 0, locked_until = NULL WHERE username = ?");
                     $stmt->bind_param("s", $username);
                     $stmt->execute();
 
-                    // Редирект на страницы в зависимости от типа пользователя
+                    
                     if ($user['user_type'] == 'admin') {
                         header('Location: admin.php');
                         exit();

@@ -1,7 +1,6 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
-// Подключаем необходимые файлы
 require_once 'db.php';
 require_once 'task_manager.php';
 
@@ -9,7 +8,6 @@ class TaskManagerTest extends TestCase
 {
     private $conn;
 
-    // Метод для установки соединения с базой данных перед тестами
     protected function setUp(): void
     {
         $this->conn = new mysqli('localhost', 'root', '', 'itivp');
@@ -18,33 +16,28 @@ class TaskManagerTest extends TestCase
         }
     }
 
-    // Метод для закрытия соединения с базой данных после тестов
     protected function tearDown(): void
     {
         $this->conn->close();
     }
 
-    // Тест на успешное добавление задачи
+
     public function testAddTaskSuccess()
     {
-        // Данные для теста
+      
         $title = "Test Task";
         $description = "This is a test task description.";
         $due_date = "2024-12-14";
         $reminder_time = "12:00:00";
         $user_id = 15; 
-
-        // Вызываем функцию для добавления задачи
+        
         $result = addTask($this->conn, $title, $description, $due_date, $reminder_time, $user_id);
 
-        // Проверяем, что задача добавлена успешно
         $this->assertEquals("Task created successfully.", $result);
     }
 
-    // Тест на проверку уникальности названия задачи
     public function testAddTaskDuplicateTitle()
     {
-        // Данные для теста
         $title = "Duplicate Task";
         $description = "This is a test task description.";
         $due_date = "2024-12-14";

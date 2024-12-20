@@ -11,11 +11,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] != 'team_lead') {
 $team_lead_id = $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['title'], $_POST['description'], $_POST['programming_language_ids'], $_FILES['logo'])) {
-    // Получаем данные из формы
+    
     $title = trim($_POST['title']);
     $description = trim($_POST['description']);
     $programming_language_ids = $_POST['programming_language_ids'];
-    $place = $_POST['place']; // Array of selected language IDs
+    $place = $_POST['place']; 
 
     // Проверки для title и description
     if (strlen($title) < 5 || empty(trim($title))) {
@@ -24,8 +24,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['title'], $_POST['descr
         echo "<script>alert('Description must be at least 10 characters long.');</script>";
     } else {
 
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+        $fileExtension = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $_FILES['logo']['tmp_name']);
+        finfo_close($finfo);
+
+
+        if (!in_array($fileExtension, $allowedExtensions) || !in_array($mimeType, ['image/jpeg', 'image/png', 'image/gif'])) {
+            echo "<script>alert('File is no image');</script>";
+            echo '<script>window.location.href="create_project.php";</script>';
+            exit();
+        }
+
         
-        // Проверяем, что логотип является изображением и его размер не превышает 2 МБ
         $maxFileSize = 2 * 1024 * 1024;
         $sizeOk = true;
         if (!isset($_FILES['logo']) || $_FILES['logo']['error'] != UPLOAD_ERR_OK) {
@@ -33,10 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['title'], $_POST['descr
             echo '<script>window.location.href="create_project.php";</script>';
             exit();
         }        
-        // Проверяем, является ли файл изображением
-        $imageInfo = @getimagesize($_FILES['logo']['tmp_name']);
+
+        
+        
+        $imageInfo = getimagesize($_FILES['logo']['tmp_name']);
         if ($imageInfo === false) {
-            echo "<script>alert('File is no image.');</script>";
+            echo "<script>alert('File is corrupted.');</script>";
             echo '<script>window.location.href="create_project.php";</script>';
             exit();
             throw new Exception('Uploaded file is not a valid image.');
@@ -50,12 +66,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['title'], $_POST['descr
         }
 
         if ($sizeOk) {
-            // Папка для загрузки логотипов
             $targetDir = "uploads/logos/";
-
+            $csvDir = 'uploads/csv_files/';
             // Если папка не существует, создаем её
             if (!is_dir($targetDir)) {
-                mkdir($targetDir, 0755, true);
+                mkdir($targetDir, 0777, true);
+            }
+
+            if (!is_dir($csvDir)) {
+                mkdir($csvDir, 0777, true);
             }
 
             
@@ -74,6 +93,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['title'], $_POST['descr
 
             // Получаем уникальное имя для файла
             $targetFile = generateUniqueFileName($targetDir, $fileExtension);
+
+            if ($_FILES['csv_file']['error'] === UPLOAD_ERR_OK) {
+                $csvTmpName = $_FILES['csv_file']['tmp_name'];
+                $csvOriginalName = $_FILES['csv_file']['name'];
+                $csvExtension = strtolower(pathinfo($csvOriginalName, PATHINFO_EXTENSION));
+        
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $csvMimeType = finfo_file($finfo, $csvTmpName);
+                finfo_close($finfo);
+        
+                $allowedCsvExtensions = ['csv'];
+                if (!in_array($csvExtension, $allowedCsvExtensions) || !in_array($csvMimeType, ['text/csv', 'application/csv'])) {
+                    echo "<script>alert('File is not a valid CSV');</script>";
+                    echo '<script>window.location.href="create_project.php";</script>';
+                    exit();
+                }
+        
+                $csvNewName = generateUniqueFileName($csvDir, $csvExtension);
+                
+        
+                // Перемещение файла в директорию
+                if (move_uploaded_file($csvTmpName, $csvNewName)) {
+                    echo "CSV file uploaded successfully: " . $csvNewName . "<br>";
+                } else {
+                    echo "Error uploading CSV file.<br>";
+                }
+            } else {
+                echo "Error uploading CSV file.<br>";
+            }
 
             // Перемещаем файл в папку
             if (move_uploaded_file($_FILES['logo']['tmp_name'], $targetFile)) {
@@ -160,26 +208,10 @@ $languages = $conn->query("SELECT * FROM programming_languages");
             box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
         }
     </style>
-    <script>
-        function validateForm() {
-            const title = document.forms["projectForm"]["title"].value.trim();
-            const description = document.forms["projectForm"]["description"].value.trim();
 
-            if (title.length < 5 || title.replace(/\s+/g, '').length === 0) {
-                alert("Project title must be at least 5 characters long and not consist of only spaces.");
-                return false;
-            }
-
-            if (description.length < 10) {
-                alert("Description must be at least 10 characters long.");
-                return false;
-            }
-
-            return true;
-        }
-    </script>
 </head>
 <body>
+    <div>i</div>
     <div>i</div>
     <div>i</div>
     <h2>Create New Project</h2>
@@ -199,6 +231,7 @@ $languages = $conn->query("SELECT * FROM programming_languages");
 
         <label for="place">Place:</label>
         <select name="place" required>
+            <!-- Options for places -->
             <option value="Minsk">Minsk</option>
             <option value="Belarus">Belarus</option>
             <option value="Moscow">Moscow</option>
@@ -216,7 +249,188 @@ $languages = $conn->query("SELECT * FROM programming_languages");
         <label for="logo">Upload Project Logo:</label>
         <input type="file" name="logo" accept="image/*" required>
 
+        <label for="csv_file">Upload CSV File:</label>
+<input type="file" name="csv_file" accept=".csv">
+
+
         <button type="submit">Create Project</button>
     </form>
 </body>
+<script>
+function validateForm() {
+    var title = document.forms["projectForm"]["title"].value;
+    var description = document.forms["projectForm"]["description"].value;
+    var logo = document.forms["projectForm"]["logo"].files[0];
+    var csvFile = document.forms["projectForm"]["csv_file"].files[0];
+
+    if (title.length < 5 || title.trim().length === 0) {
+        alert('Project title must be at least 5 characters and cannot be empty.');
+        return false;
+    }
+
+    if (description.length < 10) {
+        alert('Description must be at least 10 characters.');
+        return false;
+    }
+
+    if (!logo) {
+        alert('Please upload a logo for the project.');
+        return false;
+    }
+
+    if (!isFileAccessible(logo)) {
+        alert('Logo file is inaccessible. Please check the file or device connection.');
+        return false;
+    }
+
+    if (csvFile) {
+        if (!isValidCSV(csvFile)) {
+            alert('The uploaded file must be a valid CSV file.');
+            return false;
+        }
+        
+        if (!checkDelimiter(csvFile)) {
+            alert('The CSV file must use the correct delimiter (e.g., comma or semicolon).');
+            return false;
+        }
+
+        if (!checkQuotes(csvFile)) {
+            alert('The CSV file contains incorrect quote escaping.');
+            return false;
+        }
+
+        if (!checkRowCount(csvFile)) {
+            alert('The CSV file has rows with an incorrect number of columns.');
+            return false;
+        }
+
+        if (!checkEmptyRows(csvFile)) {
+            alert('The CSV file contains empty rows.');
+            return false;
+        }
+
+        if (!validateCSVData(csvFile)) {
+            alert('The CSV file contains invalid data (e.g., non-numeric values in numeric columns).');
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function isFileAccessible(file) {
+    try {
+        const fileLastModified = file.lastModified;
+        const fileSize = file.size;
+        const fileName = file.name;
+
+        return fileLastModified && fileSize && fileName;
+    } catch (error) {
+        return false;
+    }
+}
+
+function isValidCSV(file) {
+    const allowedExtension = 'csv';
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+
+    if (fileExtension !== allowedExtension) {
+        return false;  
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+        alert('CSV file size must be less than 5 MB.');
+        return false;
+    }
+
+    return true;
+}
+
+function checkDelimiter(file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            if (!content.includes(',')) {
+                alert('The CSV file should contain commas as delimiters.');
+                return false;
+            }
+        };
+        reader.readAsText(file);
+    }
+    return true;
+}
+
+function checkQuotes(file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            if (!content.includes('"')) {
+                alert('The CSV file must properly escape quotes.');
+                return false;
+            }
+        };
+        reader.readAsText(file);
+    }
+    return true;
+}
+
+function checkRowCount(file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            const rows = content.split('\n');
+            const headerColumns = rows[0].split(',');
+            rows.forEach(row => {
+                if (row.split(',').length !== headerColumns.length) {
+                    alert('One or more rows have an incorrect number of columns.');
+                    return false;
+                }
+            });
+        };
+        reader.readAsText(file);
+    }
+    return true;
+}
+
+function checkEmptyRows(file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            const rows = content.split('\n');
+            rows.forEach(row => {
+                if (row.trim() === '') {
+                    alert('The CSV file contains empty rows.');
+                    return false;
+                }
+            });
+        };
+        reader.readAsText(file);
+    }
+    return true;
+}
+
+function validateCSVData(file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            const rows = content.split('\n');
+            rows.forEach(row => {
+                const columns = row.split(',');
+                if (isNaN(columns[0])) {
+                    alert('Invalid data found: the first column should contain numbers.');
+                    return false;
+                }
+            });
+        };
+        reader.readAsText(file);
+    }
+    return true;
+}
+</script>
 </html>
